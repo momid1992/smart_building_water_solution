@@ -4,9 +4,11 @@ import RPi.GPIO as GPIO
 import time, math, sys
 import Adafruit_MCP3008
 
+# Set pi GPIOs
 GPIO.setmode(GPIO.BCM)
+
 #########################################################################
-#              Socket                                                   #
+#              Setup Socket                                             #
 #########################################################################
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 host = '192.168.0.199'
@@ -40,16 +42,12 @@ flag = 0
 s.connect((host, port))
 print('Connected with: ', host)
 
-
-
-
-
 ####************************************************************************************#####
 ####                    First Function                                                  #####
 ####************************************************************************************#####
 
-def printing(flow, liters, minute, temperature, power_energy, hours, decimalPlaces=2):  # new_message, decimalPlaces=2):
 
+def printing(flow, liters, minute, temperature, power_energy, hours, decimalPlaces=2):  # new_message, decimalPlaces=2):
     times = 0.6
     global names
     new_messages = str(names)
