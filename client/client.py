@@ -3,33 +3,30 @@ import socket
 import RPi.GPIO as GPIO
 import time, math, sys
 import Adafruit_MCP3008
+from os import environ
+from sys import exit
 
 # Set pi GPIOs
 GPIO.setmode(GPIO.BCM)
 
 #########################################################################
-#              Setup Socket                                             #
-#########################################################################
-s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-host = '192.168.0.199'
-port = 5900
-#########################################################################
-#              Software SPI configuration:                              #
-#########################################################################
-CLK = 11
-MISO = 9
-MOSI = 10
-CS = 8
-mcp = Adafruit_MCP3008.MCP3008(clk=CLK, cs=CS, miso=MISO, mosi=MOSI)
-inpt = 27
-GPIO.setup(inpt, GPIO.IN)
-#########################################################################
 #                       Global Variables                                #
 #########################################################################
+HOST_IP = '192.168.0.199'
+HOST_PORT = 5900
+try:
+    CLIENT_ID = os.environ['CLIENT_ID']
+except KeyError:
+    print("client id was not defined, please run export CLIENT_ID=\"Your client id\"")
+    sys.exit(0)
 
-pervious_temp = 0
+if CLIENT_ID == '':
+    CLIENT_ID = "Not Defined"
+
+
+previous_temp = 0
 diff_temp = 0
-pervious_liter = 0
+previous_liter = 0
 minto = 1
 sec = 1
 power_energy = 0.0
@@ -39,76 +36,63 @@ liter2 = 0
 tot_cnt = 0
 secs = 0
 flag = 0
+
+#########################################################################
+#              Setup Socket                                             #
+#########################################################################
+
+# Initializes an INET socket
+
+s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+host = HOST_IP
+port = HOST_PORT
+
+#########################################################################
+#              Software SPI configuration:                              #
+#########################################################################
+
+# SPI ADC Pins
+
+CLK = 11
+MISO = 9
+MOSI = 10
+CS = 8
+
+mcp = Adafruit_MCP3008.MCP3008(clk=CLK, cs=CS, miso=MISO, mosi=MOSI)
+
+# Set up reading flow rate/frequency sensor on GPIO
+FLOW_RATE_IN_PIN = 27
+
+# Set it as input
+GPIO.setup(FLOW_RATE_IN_PIN, GPIO.IN)
+
 s.connect((host, port))
 print('Connected with: ', host)
 
-####************************************************************************************#####
-####                    First Function                                                  #####
-####************************************************************************************#####
+
+def send_data(delay, value, unit, id, msg):
+    """
+
+    :param delay:
+    :param msg:
+    :return:
+    """
+    "test {}".format(test=0)
+    send_dict = dict(message="unit in float value in new_messages : flow", data="", unit="")
+
+    print(msg)
+    s.send(str.encode(msg))
+    time.sleep(delay)
 
 
-def printing(flow, liters, minute, temperature, power_energy, hours, decimalPlaces=2):  # new_message, decimalPlaces=2):
-    times = 0.6
-    global names
-    new_messages = str(names)
+def calc_sensor_values(bytesValues, decimal_places=2):
+    """
+    This function calculates all the adc_values from the sensor
 
-    flows = round(flow, decimalPlaces)
-    flow = str(flows)
-    new_messagew = "L/min in float value in " + new_messages + ": " + flow + " "
-    print(new_messagew)  # , ":", flow)
-    s.send(str.encode(new_messagew))
-    time.sleep(times)
-
-    literss = round(liters, decimalPlaces)
-    liters = str(literss)
-    new_messagew = "Total  liters used in " + new_messages + ": " + liters + " "
-    print(new_messagew)
-    s.send(str.encode(new_messagew))
-    time.sleep(times)
-
-    minute = int(minute)
-    minutes = str(minute)
-    new_messagew = "In total minute(s) " + new_messages + ": " + minutes + " "
-    print(new_messagew)
-    s.send(str.encode(new_messagew))
-    time.sleep(times)
-
-    temperature = round(temperature, 0)
-    temperatures = str(temperature)
-    new_messagew = "Temperature of water in " + new_messages + ": " + temperatures + "  celsius  "
-    print(new_messagew)
-    s.send(str.encode(new_messagew))
-    time.sleep(times)
-
-    power_energy = round(power_energy, decimalPlaces)
-    power_energys = str(power_energy)
-
-    new_messagew = "KWs is used " + new_messages + ": " + power_energys + " "
-    print(new_messagew)
-    s.send(str.encode(new_messagew))
-    if hours > 0:
-        hours = str(hours)
-        new_messagew = "Total hour(s) " + new_messages + ": " + hours
-        print(new_messagew)
-        s.send(str.encode(new_messagew))
-        time.sleep(times)
-
-    time.sleep(times)
-    #   space = ' '
-    #   s.send(space)
-    #   s.send(space)
-    print("\n")
-    print("\n")
-    # time.sleep(times)
-
-    return flow, liters, minute, temperature
-
-
-####***************************************************************************************####
-####                            2nd Function                                               ####
-####***************************************************************************************####
-
-def calcus(bytesValues, decimalPlacese=2):
+    :param bytesValues:
+    :param decimal_places:
+    :return:
+    """
     global tot_cnt
     global liter2
     global pulses
@@ -119,14 +103,15 @@ def calcus(bytesValues, decimalPlacese=2):
     rate_cnt = 0
     gpio_lasts = 0
     constant = 1
-    # time_zero = time.time()
-   # global flag
-    #while True:# flag == 1:
+    send_delay_seconds = 0.6
+    global names
+    new_messages = str(names)
+
     try:
 
         time_start = time.time()
         while pulses <= 5:
-            gpio_curr = GPIO.input(inpt)
+            gpio_curr = GPIO.input(FLOW_RATE_IN_PIN)
 
             if gpio_curr != 0 and gpio_curr != gpio_lasts:
                 pulses += 1
@@ -140,17 +125,17 @@ def calcus(bytesValues, decimalPlacese=2):
             voltage = ((bytesValues * 3.3) / 1023)
             voltageout = 3.3 - voltage
             resisT = float(10000) * float(voltage) / float(voltageout)
-            resisT = round(resisT, decimalPlacese)
+            resisT = round(resisT, decimal_places)
             A = float(1) / float(298.15)  # in 25 degree celsuis
             B = float(1) / float(3950)  # is the beta value
             lo = math.log(float(resisT) / float(50000))
             kelvin = A + B * lo
             kelvin = 1 / kelvin
-            kelvin = round(kelvin, decimalPlacese)
+            kelvin = round(kelvin, decimal_places)
             celsius = kelvin - 273.15
 
-        except:
-            print("There is error in temperature sensor or code: ")
+        except Exception as e:
+            print("There is error in temperature sensor or code: {}".format(e))
             return voltage
 
         try:
@@ -165,60 +150,94 @@ def calcus(bytesValues, decimalPlacese=2):
                 minutes = 0
                 hour += 1
 
-        except:
-            print("Flow rate error: ", flow_rate)
+        except Exception as e:
+            print("Flow rate error: {}".format(e))
             return voltage
 
         seconds = (time_end - time_zero)
         seconds = int(seconds)
-        global minto  ## Variable for difference temperature and liters
-        global current_temp  # verable for current temperature
+        global minto  # Variable for difference temperature and liters
+        global current_temp  # variable for current temperature
         current_temp = celsius  # whatever temperature will be here assign to current temperature
 
         if seconds >= sec and current_temp >= 26:
-            global pervious_temp
+            global previous_temp
             global diff_temp
-            global pervious_liter
+            global previous_liter
             global power_energy
 
-            if current_temp < pervious_temp:
-                diff_temp = -current_temp + pervious_temp
+            if current_temp < previous_temp:
+                diff_temp = -current_temp + previous_temp
                 diff_temp = round(diff_temp, 2)
                 print('Temperature of water is decressing : ', diff_temp)
-            if pervious_temp <= current_temp:
-                diff_temp = current_temp - pervious_temp
+            if previous_temp <= current_temp:
+                diff_temp = current_temp - previous_temp
 
-            diff_liter = liter - pervious_liter
-            pervious_liter = liter
-            pervious_temp = current_temp
+            diff_liter = liter - previous_liter
+            previous_liter = liter
+            previous_temp = current_temp
             sec += 1
             power_energy = (diff_liter * 4 * diff_temp) / 3412
             power_energy = round(power_energy, 4)
             print('Power is used liter(s)/second: ', power_energy)
             sec = seconds
         pulses = 0
-        printing(flow_rate, liter, minute, celsius, power_energy, hour)
+        send_data(flow_rate, liter, minute, celsius, power_energy, hour)
+
+        send_delay_seconds = 0.6
+        global names
+        new_messages = str(names)
+
+        flow = str(round(flow_rate, decimal_places))
+        send_data(send_delay_seconds, "L/min in float value in " + new_messages + ": " + flow + " ")
+
+        liters = str(round(liter, decimal_places))
+        send_data(send_delay_seconds, "Total  liters used in " + new_messages + ": " + liters + " ")
+
+        minutes = str(int(minute))
+        send_data(send_delay_seconds, "In total minute(s) " + new_messages + ": " + minutes + " ")
+
+        temperatures = str(round(celsius, 0))
+        send_data(send_delay_seconds,
+                        "Temperature of water in " + new_messages + ": " + temperatures + "  celsius  ")
+
+        power_energy = str(round(power_energy, decimal_places))
+        send_data(send_delay_seconds, "KWs is used " + new_messages + ": " + power_energy + " ")
+
+        if hours > 0:
+            hours = str(hours)
+            new_messagew = "Total hour(s) " + new_messages + ": " + hours
+            print(new_messagew)
+            s.send(str.encode(new_messagew))
+            time.sleep(send_delay_seconds)
+
+        time.sleep(send_delay_seconds)
+        print("\n")
+        print("\n")
+
 
     except KeyboardInterrupt:
         GPIO.cleanup()
         reply = 'crashed'
         s.send(str.encode(reply))
-#flag = 0
+
+    except Exception as e:
+        print('Error in calculation {}'.format(e))
 
 
 names = raw_input("Name>   ")
 time_zero = time.time()
+
+
+# Runs continuously and grabs sensors values
+# Hall effect from GPIO and temperature values from ADC
+
 while True:
-    #flag = 1
-    # global new_messages
-    times = 0.06
+    delay_time = 0.06
 
-    values = [0] * 1
+    adc_values = [0] * 1
     for i in range(2):
-        values = mcp.read_adc(0)
-    bytess = float(values)
-    time.sleep(times)
-    calcus(bytess)
-
-
-
+        adc_values = mcp.read_adc(0)
+    temp_byte = float(adc_values)
+    time.sleep(delay_time)
+    calc_sensor_values(temp_byte)

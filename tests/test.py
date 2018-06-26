@@ -17,9 +17,9 @@ mcp = Adafruit_MCP3008.MCP3008(clk=CLK, cs=CS, miso=MISO, mosi=MOSI)
 inpt = 17
 GPIO.setup(inpt, GPIO.IN)
 
-pervious_temp = 0
+previous_temp = 0
 diff_temp = 0
-pervious_liter = 0
+previous_liter = 0
 minto = 1
 sec = 1
 power_energy = 0.0
@@ -79,7 +79,7 @@ def printing(flow, liters, minute, temperature, power_energy, decimalPlaces=2): 
  #   s.send(space)
     print("\n")
     print("\n")
-    #time.sleep(times)
+    #time.sleep(delay_time)
 
     return flow, liters, minute, temperature
 
@@ -144,9 +144,9 @@ def calcus(bytesValues, decimalPlacese=2):
             current_temp = celsius  # whatever temperature will be here assign to current temperature
 
             if seconds >= sec and current_temp >= 30:
-                global pervious_temp
+                global previous_temp
                 global diff_temp
-                global pervious_liter
+                global previous_liter
                 global power_energy
                 if current_temp < pervious_temp:
                     diff_temp = -current_temp + pervious_temp
