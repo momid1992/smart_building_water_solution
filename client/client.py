@@ -3,6 +3,8 @@ import socket
 import RPi.GPIO as GPIO
 import time, math, sys
 import Adafruit_MCP3008
+from os import environ
+from sys import exit
 
 # Set pi GPIOs
 GPIO.setmode(GPIO.BCM)
@@ -12,6 +14,15 @@ GPIO.setmode(GPIO.BCM)
 #########################################################################
 HOST_IP = '192.168.0.199'
 HOST_PORT = 5900
+try:
+    CLIENT_ID = os.environ['CLIENT_ID']
+except KeyError:
+    print("client id was not defined, please run export CLIENT_ID=\"Your client id\"")
+    sys.exit(0)
+
+if CLIENT_ID == '':
+    CLIENT_ID = "Not Defined"
+
 
 previous_temp = 0
 diff_temp = 0
@@ -59,61 +70,19 @@ s.connect((host, port))
 print('Connected with: ', host)
 
 
-def send_with_print(delay, msg):
-    print(msg)  # , ":", flow)
-    s.send(str.encode(msg))
-    time.sleep(delay)
-
-
-def send_data(flow=0, liters=0, minute=0, temperature=0, power_energy=0.0, hours=0,
-              decimal_places=2):  # new_message, decimal_places=2):
+def send_data(delay, value, unit, id, msg):
     """
-    this functions sends data
 
-    :param flow: the caluclated flowrate from the sensor
-    :param liters: used litres of water
-    :param minute: timestamp
-    :param temperature: temperature of the water
-    :param power_energy: the delta power needed to raise the temperature to new value
-    :param hours: timestamp
-    :param decimal_places: return formatting for decimal
+    :param delay:
+    :param msg:
     :return:
     """
-    send_delay_seconds = 0.6
-    global names
-    new_messages = str(names)
+    "test {}".format(test=0)
+    send_dict = dict(message="unit in float value in new_messages : flow", data="", unit="")
 
-    flow = str(round(flow, decimal_places))
-    send_with_print(send_delay_seconds, "L/min in float value in " + new_messages + ": " + flow + " ")
-
-    liters = str(round(liters, decimal_places))
-    send_with_print(send_delay_seconds, "Total  liters used in " + new_messages + ": " + liters + " ")
-
-    minutes = str(int(minute))
-    send_with_print(send_delay_seconds, "In total minute(s) " + new_messages + ": " + minutes + " ")
-
-    temperatures = str(round(temperature, 0))
-    send_with_print(send_delay_seconds, "Temperature of water in " + new_messages + ": " + temperatures + "  celsius  ")
-
-    power_energy = str(round(power_energy, decimal_places))
-    send_with_print(send_delay_seconds, "KWs is used " + new_messages + ": " + power_energy + " ")
-
-    if hours > 0:
-        hours = str(hours)
-        new_messagew = "Total hour(s) " + new_messages + ": " + hours
-        print(new_messagew)
-        s.send(str.encode(new_messagew))
-        time.sleep(send_delay_seconds)
-
-    time.sleep(send_delay_seconds)
-    #   space = ' '
-    #   s.send(space)
-    #   s.send(space)
-    print("\n")
-    print("\n")
-    # time.sleep(send_delay_seconds)
-
-    return flow, liters, minute, temperature
+    print(msg)
+    s.send(str.encode(msg))
+    time.sleep(delay)
 
 
 def calc_sensor_values(bytesValues, decimal_places=2):
@@ -134,9 +103,10 @@ def calc_sensor_values(bytesValues, decimal_places=2):
     rate_cnt = 0
     gpio_lasts = 0
     constant = 1
-    # time_zero = time.time()
-    # global flag
-    # while True:# flag == 1:
+    send_delay_seconds = 0.6
+    global names
+    new_messages = str(names)
+
     try:
 
         time_start = time.time()
@@ -213,6 +183,38 @@ def calc_sensor_values(bytesValues, decimal_places=2):
             sec = seconds
         pulses = 0
         send_data(flow_rate, liter, minute, celsius, power_energy, hour)
+
+        send_delay_seconds = 0.6
+        global names
+        new_messages = str(names)
+
+        flow = str(round(flow_rate, decimal_places))
+        send_data(send_delay_seconds, "L/min in float value in " + new_messages + ": " + flow + " ")
+
+        liters = str(round(liter, decimal_places))
+        send_data(send_delay_seconds, "Total  liters used in " + new_messages + ": " + liters + " ")
+
+        minutes = str(int(minute))
+        send_data(send_delay_seconds, "In total minute(s) " + new_messages + ": " + minutes + " ")
+
+        temperatures = str(round(celsius, 0))
+        send_data(send_delay_seconds,
+                        "Temperature of water in " + new_messages + ": " + temperatures + "  celsius  ")
+
+        power_energy = str(round(power_energy, decimal_places))
+        send_data(send_delay_seconds, "KWs is used " + new_messages + ": " + power_energy + " ")
+
+        if hours > 0:
+            hours = str(hours)
+            new_messagew = "Total hour(s) " + new_messages + ": " + hours
+            print(new_messagew)
+            s.send(str.encode(new_messagew))
+            time.sleep(send_delay_seconds)
+
+        time.sleep(send_delay_seconds)
+        print("\n")
+        print("\n")
+
 
     except KeyboardInterrupt:
         GPIO.cleanup()
