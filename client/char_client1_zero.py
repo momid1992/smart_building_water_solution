@@ -1,7 +1,4 @@
 import socket
-import threading
-import time
-import sys
 
 host = '192.168.0.109'
 port = 5900
@@ -15,10 +12,6 @@ def receving(name):
         ya = s.send(str.encode(name))
         print('Sent data: ', name)
         return ya
-
-
-
-
 
 names = raw_input("Name")
 message = raw_input(names + "->")
